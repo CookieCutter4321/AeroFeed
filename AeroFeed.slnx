@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="AeroFeed.Client/AeroFeed.client.esproj" DisplayName="AeroFeed.Client">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="AeroFeed.Server/AeroFeed.Server.csproj" />
+</Solution>
