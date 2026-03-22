@@ -1,4 +1,4 @@
-using AeroFeed.Server;
+using AeroFeed.Server.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
 
