@@ -1,7 +1,5 @@
 ﻿using System.Text.Json;
-using System.Text.Json.Serialization;
 using AeroFeed.Server.Models;
-using LaunchDarkly.EventSource;
 
 namespace AeroFeed.Server.Workers
 {
