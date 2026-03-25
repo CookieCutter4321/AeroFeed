@@ -3,7 +3,7 @@ using AeroFeed.Server.Workers;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddHostedService<SSEWorker>();
+builder.Services.AddHostedService<Producer>();
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();

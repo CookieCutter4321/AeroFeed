@@ -5,7 +5,7 @@ using Confluent.Kafka;
 
 namespace AeroFeed.Server.Workers
 {
-    public class SSEWorker : BackgroundService
+    public class Producer : BackgroundService
     {
         public static readonly JsonSerializerOptions options = new()
         {
@@ -23,7 +23,7 @@ namespace AeroFeed.Server.Workers
 
         private readonly IConfiguration _config;
         private readonly ProducerConfig _producerConfig;
-        public SSEWorker(IConfiguration config)
+        public Producer(IConfiguration config)
         {
             _config = config;
             string certFolder = _config["KAFKA_CERT_LOCATION"];
@@ -39,6 +39,11 @@ namespace AeroFeed.Server.Workers
                 // keystore (Service Cert + Key)
                 SslCertificateLocation = Path.Combine(certFolder, "service.cert"),
                 SslKeyLocation = Path.Combine(certFolder, "service.key"),
+
+                // Compression settings
+                CompressionType = CompressionType.Lz4,
+                LingerMs = 100,
+                BatchSize = 64 * 1024, // 64 KB
             };
         }
 
@@ -70,7 +75,6 @@ namespace AeroFeed.Server.Workers
                             Key = Guid.NewGuid().ToString(),
                             Value = line[6..]
                         }, stoppingToken);
-                        Console.WriteLine(n += 1);
                     }
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
