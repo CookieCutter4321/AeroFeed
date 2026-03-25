@@ -3,7 +3,7 @@ using AeroFeed.Server.Workers;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddHostedService<Producer>();
+//builder.Services.AddHostedService<Producer>();
 builder.Services.AddHostedService<Consumer>();
 
 builder.Services.AddControllers();
@@ -47,4 +47,18 @@ app.Run();
  * 1. Running Docker locally - copy the certs (based off of KAFKA_CERT_LOCATION) to the output folder and use those.
  * 2. Running Docker in production - use secrets and mount them to the container, then use those paths in the config.
  * 
+ * TODO: We want to keep below the 500k monthly command limit for redis. We should aim to:
+ * 1. batch updates in groups (perhaps every 100 messages or every 5 minutes, whichever comes first). We could also perform these calculations ourselves before sending.
+ * 2. When we consume from the kafka topic we should send the update to the client via SignalR. 
+ * We should NOT poll redis for updates, but instead rely on the fact that the client will receive the update via SignalR and then update their local state accordingly. 
+ * This will reduce the number of reads we perform on Redis.
+ * tips: Maybe ConcurrentStack or Channel<T>
+ * 
+ * 100 messages / sec * 60 secs / min * 60 min / hr * 24 hr / day * 30 days / month = 259,200,000 messages per month (assuming worst case of 100 m/s)
+ * So the plan is something like:
+ * 1. Deduplication - batch 1,000 UUIDS . 259,200 BF.MADD calls
+ * 2. Statistics - calculate the stats ourselves and then send the aggregate to Redis every minute. 43,200 calls 
+ * 3. SignalR - send the update to the client every time we consume a message from Kafka. 0 calls
+ * 4. Startup - we can load the most recent stats from Redis on startup. negligible calls
+ * 5. Total - 302,400 calls per month (assuming worst case of 100 m/s)
  */
