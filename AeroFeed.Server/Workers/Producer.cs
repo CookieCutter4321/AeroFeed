@@ -7,13 +7,7 @@ namespace AeroFeed.Server.Workers
 {
     public class Producer : BackgroundService
     {
-        public static readonly JsonSerializerOptions options = new()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-            PropertyNameCaseInsensitive = true
-        };
-
-        public static HttpClient client = new()
+        private static readonly HttpClient client = new()
         {
             DefaultRequestHeaders =
             {
@@ -57,7 +51,6 @@ namespace AeroFeed.Server.Workers
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                int n = 0;
                 try
                 {
                     using var stream = await client.GetStreamAsync("https://stream.wikimedia.org/v2/stream/recentchange", stoppingToken);
@@ -75,6 +68,7 @@ namespace AeroFeed.Server.Workers
                             Key = Guid.NewGuid().ToString(),
                             Value = line[6..]
                         }, stoppingToken);
+                        Console.WriteLine("PRODUCER | Sent message to Kafka");
                     }
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
