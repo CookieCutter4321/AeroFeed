@@ -1,6 +1,7 @@
 ﻿using System.Linq.Expressions;
 using System.Text.Json;
 using AeroFeed.Server.Models;
+using Confluent.Kafka;
 
 namespace AeroFeed.Server.Workers
 {
@@ -20,8 +21,33 @@ namespace AeroFeed.Server.Workers
             }
         };
 
+        private readonly IConfiguration _config;
+        private readonly ProducerConfig _producerConfig;
+        public SSEWorker(IConfiguration config)
+        {
+            _config = config;
+
+            _producerConfig = new ProducerConfig
+            {
+                BootstrapServers = "aerofeed-kafka-jw9007235-5415.l.aivencloud.com:24013",
+                SecurityProtocol = SecurityProtocol.Ssl,
+
+                // truststore (CA)
+                SslCaLocation = Environment.GetEnvironmentVariable("KAFKA_CERT_LOCATION"),
+
+                // keystore (Service Cert + Key)
+                SslCertificateLocation = Environment.GetEnvironmentVariable("KAFKA_CERT_LOCATION"),
+                SslKeyLocation = Environment.GetEnvironmentVariable("KAFKA_CERT_LOCATION"),
+            };
+        }
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+
+            using var producer = new ProducerBuilder<string, string>(_producerConfig)
+                .SetKeySerializer(Serializers.Utf8)
+                .SetValueSerializer(Serializers.Utf8)
+                .Build();
 
             while (!stoppingToken.IsCancellationRequested)
             {
