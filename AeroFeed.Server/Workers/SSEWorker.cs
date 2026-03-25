@@ -26,6 +26,7 @@ namespace AeroFeed.Server.Workers
         public SSEWorker(IConfiguration config)
         {
             _config = config;
+            string certFolder = _config["KAFKA_CERT_LOCATION"];
 
             _producerConfig = new ProducerConfig
             {
@@ -33,11 +34,11 @@ namespace AeroFeed.Server.Workers
                 SecurityProtocol = SecurityProtocol.Ssl,
 
                 // truststore (CA)
-                SslCaLocation = Environment.GetEnvironmentVariable("KAFKA_CERT_LOCATION"),
+                SslCaLocation = Path.Combine(certFolder, "ca.pem"),
 
                 // keystore (Service Cert + Key)
-                SslCertificateLocation = Environment.GetEnvironmentVariable("KAFKA_CERT_LOCATION"),
-                SslKeyLocation = Environment.GetEnvironmentVariable("KAFKA_CERT_LOCATION"),
+                SslCertificateLocation = Path.Combine(certFolder, "service.cert"),
+                SslKeyLocation = Path.Combine(certFolder, "service.key"),
             };
         }
 
@@ -51,6 +52,7 @@ namespace AeroFeed.Server.Workers
 
             while (!stoppingToken.IsCancellationRequested)
             {
+                int n = 0;
                 try
                 {
                     using var stream = await client.GetStreamAsync("https://stream.wikimedia.org/v2/stream/recentchange", stoppingToken);
@@ -60,12 +62,15 @@ namespace AeroFeed.Server.Workers
                     {
                         string? line = await reader.ReadLineAsync(stoppingToken);
 
-                        if (!string.IsNullOrEmpty(line) && line.StartsWith("data: "))
+                        if (string.IsNullOrEmpty(line)) continue;
+                        if (!line.StartsWith("data: ")) continue;
+
+                        var deliveryResult = await producer.ProduceAsync("RecentChanges", new Message<string, string>
                         {
-                            RecentChange? entry = JsonSerializer.Deserialize<RecentChange>(line[6..], options);
-                            if (entry is null) continue;
-                            Console.WriteLine($"Successfully deserialized: {entry.Meta.Id}");
-                        }
+                            Key = Guid.NewGuid().ToString(),
+                            Value = line[6..]
+                        }, stoppingToken);
+                        Console.WriteLine(n += 1);
                     }
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
