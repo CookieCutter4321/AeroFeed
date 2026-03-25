@@ -68,7 +68,7 @@ namespace AeroFeed.Server.Workers
                             Key = Guid.NewGuid().ToString(),
                             Value = line[6..]
                         }, stoppingToken);
-                        Console.WriteLine("PRODUCER | Sent message to Kafka");
+                        Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] message sent to Kafka");
                     }
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)

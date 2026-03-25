@@ -58,7 +58,7 @@ namespace AeroFeed.Server.Workers
 
                     var result = JsonSerializer.Deserialize<RecentChange>(consumeResult.Message.Value, options);
 
-                    Console.WriteLine($"CONSUMER | {n += 1}: {result.Meta.Id}");
+                    Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] | {n += 1}: {result.Meta.Id}");
                 }
             }
             catch (OperationCanceledException)

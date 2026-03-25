@@ -3,7 +3,7 @@ using AeroFeed.Server.Workers;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-//builder.Services.AddHostedService<Producer>();
+builder.Services.AddHostedService<Producer>();
 builder.Services.AddHostedService<Consumer>();
 
 builder.Services.AddControllers();
