@@ -1,5 +1,8 @@
-﻿using AeroFeed.Server.Models;
+﻿using AeroFeed.Server.Hubs;
+using AeroFeed.Server.Models;
 using Confluent.Kafka;
+using Microsoft.AspNetCore.SignalR;
+using System.Data.Common;
 using System.Linq.Expressions;
 using System.Text.Json;
 
@@ -14,10 +17,13 @@ namespace AeroFeed.Server.Workers
         };
 
         private readonly IConfiguration _config;
-        private ConsumerConfig _consumerConfig;
-        public Consumer(IConfiguration config)
+        private readonly IHubContext<NotificationHub> _hubContext;
+        private readonly ConsumerConfig _consumerConfig;
+        public Consumer(IConfiguration config, IHubContext<NotificationHub> hubContext)
         {
             _config = config;
+            _hubContext = hubContext;
+
             string certFolder = _config["KAFKA_CERT_LOCATION"];
 
             _consumerConfig = new ConsumerConfig
@@ -38,6 +44,12 @@ namespace AeroFeed.Server.Workers
                 EnableAutoCommit = true,
             };
         }
+
+        Dictionary<string, int> Data = new()
+        {
+            ["net_length"] = 0
+        };
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
 
@@ -53,12 +65,17 @@ namespace AeroFeed.Server.Workers
                 while (!stoppingToken.IsCancellationRequested)
                 {
                     var consumeResult = consumer.Consume(stoppingToken);
-
                     if (consumeResult?.Message?.Value is null) continue;
-
                     var result = JsonSerializer.Deserialize<RecentChange>(consumeResult.Message.Value, options);
 
-                    Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] | {n += 1}: {result.Meta.Id}");
+                    if (result?.Length?.Old != null && result.Length.New != null)
+                    {
+                        Data["net_length"] += (int)(result.Length.New - result.Length.Old);
+                    }
+
+                    //broadcast
+                    await _hubContext.Clients.All.SendAsync("ReceiveUpdate", Data, stoppingToken);
+                    Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] message sent to clients");
                 }
             }
             catch (OperationCanceledException)

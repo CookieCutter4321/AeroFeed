@@ -23,7 +23,10 @@
     <div class="flex items-end justify-between mt-5">
       <div>
         <span class="text-sm text-gray-500 dark:text-gray-400">Orders</span>
-        <h4 class="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">5,359</h4>
+
+        @if (kafkaService.currentData$ | async; as data) {
+        <h4 class="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">{{data.net_length}}</h4>
+        }
       </div>
       <app-badge color="error">
         <span [innerHTML]="icons.arrowDownIcon | safeHtml"></span>

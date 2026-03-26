@@ -11,8 +11,10 @@ const PROXY_CONFIG = [
       "/notificationHub"
     ],
     target: "https://localhost:7025",
-    secure: false,
-    ws: true
+    secure: false, // This ignores the "Self-Signed Certificate" error
+    ws: true,      // Essential for SignalR
+    changeOrigin: true, // This makes the backend think the request came from 7025
+    logLevel: "debug"
   }
 ]
 

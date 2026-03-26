@@ -1,3 +1,4 @@
+using AeroFeed.Server.Hubs;
 using AeroFeed.Server.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -6,11 +7,20 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHostedService<Producer>();
 builder.Services.AddHostedService<Consumer>();
 
+
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddSignalR();
 
 var app = builder.Build();
+
+//
+
+app.UseAuthorization();
+app.MapControllers();
+//
+
+app.MapHub<NotificationHub>("/notificationHub");
 
 app.UseDefaultFiles();
 app.MapStaticAssets();
@@ -27,12 +37,7 @@ if (Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") != "true")
     app.UseHttpsRedirection();
 }
 
-app.UseAuthorization();
-
-app.MapControllers();
-
 app.MapFallbackToFile("/index.html");
-
 app.Run();
 
 /*
