@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, animationFrameScheduler, observeOn, auditTime, sampleTime } from 'rxjs';
 
 @Injectable({ providedIn: 'root' }) // This makes it a Singleton
 export class KafkaDataService {
@@ -10,8 +10,10 @@ export class KafkaDataService {
   private dataSubject = new BehaviorSubject<any>(null);
   
   // Components 'subscribe' to this public Observable
-  public currentData$ = this.dataSubject.asObservable();
-
+  public currentData$ = this.dataSubject.asObservable().pipe(
+    sampleTime(100), 
+    observeOn(animationFrameScheduler)
+  );
   constructor() {
     this.hubConnection = new signalR.HubConnectionBuilder()
       .withUrl('/notificationHub')
@@ -19,8 +21,7 @@ export class KafkaDataService {
       .build();
 
     this.hubConnection.on('ReceiveUpdate', (data) => {
-      this.dataSubject.next(data); // Push new Kafka data into the stream
-      console.log(data)
+      this.dataSubject.next(data);
     });
 
     this.hubConnection.start();
