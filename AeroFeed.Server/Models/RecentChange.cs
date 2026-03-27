@@ -1,3 +1,5 @@
+using Microsoft.Extensions.ObjectPool;
+
 namespace AeroFeed.Server.Models
 {
     public record RecentChange(
@@ -36,7 +38,18 @@ namespace AeroFeed.Server.Models
 
     public class RecentChangeAnalytics // These properties are converted to camelCase when we send it over signalR
     {
-        public long NetLength { get; set; }
+        public long NetLength { get; set; } = 0;
+
+        public Dictionary<string, int> TypeCounts { get; set; } = new Dictionary<string, int>() // https://www.mediawiki.org/wiki/Manual:Recentchanges_table
+        {
+            ["edit"] = 0,
+            ["new"] = 0,
+            ["log"] = 0,
+            ["categorize"] = 0,
+            ["external"] = 0
+        };
+
+
     };
 
 }

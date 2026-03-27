@@ -48,10 +48,26 @@ namespace AeroFeed.Server.Workers
         /*
          * Will not work with multiple consumers (such as if we are utilizing partitioning) since we are just keeping a single global state here.
         */
-        RecentChangeAnalytics Data = new()
+        RecentChangeAnalytics Data = new();
+
+        private void UpdateAnalytics(RecentChange? result, RecentChangeAnalytics target)
         {
-            NetLength = 0
-        };
+            if (result is null) { return; }
+
+            if (result.Length?.Old != null && result.Length.New != null)
+            {
+                target.NetLength += (int)(result.Length.New - result.Length.Old);
+            }
+
+            if (result.Type is not null)
+            {
+                if (!target.TypeCounts.ContainsKey(result.Type))
+                {
+                    target.TypeCounts[result.Type] = 0;
+                }
+                target.TypeCounts[result.Type]++;
+            }
+        }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -74,11 +90,7 @@ namespace AeroFeed.Server.Workers
                         continue;
                     }
                     var result = JsonSerializer.Deserialize<RecentChange>(consumeResult.Message.Value, options);
-
-                    if (result?.Length?.Old != null && result.Length.New != null)
-                    {
-                        Data.NetLength += (int)(result.Length.New - result.Length.Old);
-                    }
+                    UpdateAnalytics(result, Data);
 
                     //broadcast
                     await _hubContext.Clients.All.SendAsync("ReceiveUpdate", Data, stoppingToken);
