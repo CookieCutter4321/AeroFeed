@@ -34,4 +34,9 @@ namespace AeroFeed.Server.Models
         long? New
     );
 
+    public class RecentChangeAnalytics // These properties are converted to camelCase when we send it over signalR
+    {
+        public long NetLength { get; set; }
+    };
+
 }

@@ -66,4 +66,10 @@ app.Run();
  * 3. SignalR - send the update to the client every time we consume a message from Kafka. 0 calls
  * 4. Startup - we can load the most recent stats from Redis on startup. negligible calls
  * 5. Total - 302,400 calls per month (assuming worst case of 100 m/s)
+ * 
+ * TODO: For Line charts we will need to push the entire graph up (e.g. for timestamps).
+ *  1. If user is new, THEN send the entire batch of data. Maybe timestamps only use 8 bytes, and suppose we are interesed in 5 fields of ints worth of data 
+ *  (so 40 bytes) = 48 bytes total. If we wanted to slice it per minute for a max of 3 days then 60 min / hr * 24 hr / day * 3 = 4320 slices. 
+ *  4320 * 48 bytes ~= 0.20 worth of MB. (OnConnectedAsync maybe?)
+ *  2. if the user is OLD, then send only the most recent timestamp data (assume user already has the historical loaded already). 
  */

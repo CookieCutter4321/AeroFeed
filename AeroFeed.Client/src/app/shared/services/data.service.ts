@@ -21,6 +21,9 @@ export class KafkaDataService {
       .build();
 
     this.hubConnection.on('ReceiveUpdate', (data) => {
+      let dateTime = new Date();
+      console.log(dateTime);
+      console.log(data.netLength);
       this.dataSubject.next(data);
     });
 

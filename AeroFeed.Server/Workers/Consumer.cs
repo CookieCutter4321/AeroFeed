@@ -45,9 +45,12 @@ namespace AeroFeed.Server.Workers
             };
         }
 
-        Dictionary<string, int> Data = new()
+        /*
+         * Will not work with multiple consumers (such as if we are utilizing partitioning) since we are just keeping a single global state here.
+        */
+        RecentChangeAnalytics Data = new()
         {
-            ["net_length"] = 0
+            NetLength = 0
         };
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -70,7 +73,7 @@ namespace AeroFeed.Server.Workers
 
                     if (result?.Length?.Old != null && result.Length.New != null)
                     {
-                        Data["net_length"] += (int)(result.Length.New - result.Length.Old);
+                        Data.NetLength += (int)(result.Length.New - result.Length.Old);
                     }
 
                     //broadcast
