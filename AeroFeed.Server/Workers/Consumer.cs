@@ -67,8 +67,12 @@ namespace AeroFeed.Server.Workers
                 int n = 0;
                 while (!stoppingToken.IsCancellationRequested)
                 {
-                    var consumeResult = consumer.Consume(stoppingToken);
-                    if (consumeResult?.Message?.Value is null) continue;
+                    var consumeResult = consumer.Consume(TimeSpan.FromMilliseconds(100));
+                    if (consumeResult?.Message?.Value is null)
+                    {
+                        Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] No messages in queue or timeout");
+                        continue;
+                    }
                     var result = JsonSerializer.Deserialize<RecentChange>(consumeResult.Message.Value, options);
 
                     if (result?.Length?.Old != null && result.Length.New != null)

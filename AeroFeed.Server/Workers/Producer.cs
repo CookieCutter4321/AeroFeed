@@ -1,4 +1,5 @@
-﻿using System.Linq.Expressions;
+﻿using System.Diagnostics.Eventing.Reader;
+using System.Linq.Expressions;
 using System.Text.Json;
 using AeroFeed.Server.Models;
 using Confluent.Kafka;
@@ -68,7 +69,19 @@ namespace AeroFeed.Server.Workers
                             Key = Guid.NewGuid().ToString(),
                             Value = line[6..]
                         }, stoppingToken);
-                        Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] message sent to Kafka");
+
+                        switch (deliveryResult.Status)
+                        {
+                            case PersistenceStatus.Persisted:
+                                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] message persisted to Kafka");
+                                break;
+                            case PersistenceStatus.NotPersisted:
+                                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [WARN] message not persisted to Kafka");
+                                break;
+                            default:
+                                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [ERROR] unexpected status {deliveryResult.Status} when sending message to Kafka");
+                                break;
+                        }
                     }
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
