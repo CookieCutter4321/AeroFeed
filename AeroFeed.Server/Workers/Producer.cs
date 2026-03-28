@@ -78,32 +78,7 @@ namespace AeroFeed.Server.Workers
 
                         if (string.IsNullOrEmpty(line)) continue;
                         if (!line.StartsWith("data: ")) continue;
-                        if (n >= 50)
-                        {
-                            try
-                            {
-                                using var temp_stream = await client.GetStreamAsync("https://stream.wikimedia.org/v2/stream/recentchange", stoppingToken);
-                                using var temp_reader = new StreamReader(temp_stream);
-
-                                string? temp_line;
-                                while ((temp_line = await temp_reader.ReadLineAsync(stoppingToken)) != null)
-                                {
-                                    if (temp_line.StartsWith("data: "))
-                                    {
-                                        var latest = JsonSerializer.Deserialize<RecentChange>(temp_line.AsSpan(6), options);
-                                        var current = JsonSerializer.Deserialize<RecentChange>(line.AsSpan(6), options);
-
-                                        if (current != null && latest != null)
-                                        {
-                                            Console.WriteLine($"LAG: {latest.Meta.Offset - current.Meta.Offset} messages");
-                                        }
-                                        break;
-                                    }
-                                }
-                            }
-                            catch (Exception ex) { }
-                            n = 0;
-                        }
+                        if (n >= 50) { DisplayLagInfo(line, client, stoppingToken); n = 0; }
 
                         await _kafkaThrottle.WaitAsync(stoppingToken);
                         _ = Task.Run(async () =>
@@ -116,19 +91,7 @@ namespace AeroFeed.Server.Workers
                                     Value = line[6..]
                                 }, stoppingToken);
                                 n++;
-
-                                switch (deliveryResult.Status)
-                                {
-                                    case PersistenceStatus.Persisted: // No need to log if messages are delivered successfully.
-                                        //Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] message persisted to Kafka.");
-                                        break;
-                                    case PersistenceStatus.NotPersisted:
-                                        Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [WARN] message not persisted to Kafka");
-                                        break;
-                                    default:
-                                        Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [ERROR] unexpected status {deliveryResult.Status} when sending message to Kafka");
-                                        break;
-                                }
+                                DisplayProduceAsyncStatus(deliveryResult);
                             } finally
                             {
                                 _kafkaThrottle.Release();
@@ -144,6 +107,47 @@ namespace AeroFeed.Server.Workers
                 }
             }
 
+        }
+        public async void DisplayLagInfo(string? line, HttpClient client, CancellationToken stoppingToken)
+        {
+            try
+            {
+                using var temp_stream = await client.GetStreamAsync("https://stream.wikimedia.org/v2/stream/recentchange", stoppingToken);
+                using var temp_reader = new StreamReader(temp_stream);
+
+                string? temp_line;
+                while ((temp_line = await temp_reader.ReadLineAsync(stoppingToken)) != null)
+                {
+                    if (temp_line.StartsWith("data: "))
+                    {
+                        var latest = JsonSerializer.Deserialize<RecentChange>(temp_line.AsSpan(6), options);
+                        var current = JsonSerializer.Deserialize<RecentChange>(line.AsSpan(6), options);
+
+                        if (current != null && latest != null)
+                        {
+                            Console.WriteLine($"LAG: {latest.Meta.Offset - current.Meta.Offset} messages");
+                        }
+                        break;
+                    }
+                }
+            }
+            catch (Exception ex) { }
+        }
+
+        public void DisplayProduceAsyncStatus (DeliveryResult<string,string> deliveryResult)
+        {
+            switch (deliveryResult.Status)
+            {
+                case PersistenceStatus.Persisted: // No need to log if messages are delivered successfully.
+                    //Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] message persisted to Kafka.");
+                    break;
+                case PersistenceStatus.NotPersisted:
+                    Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [WARN] message not persisted to Kafka");
+                    break;
+                default:
+                    Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [ERROR] unexpected status {deliveryResult.Status} when sending message to Kafka");
+                    break;
+            }
         }
     }
 }
