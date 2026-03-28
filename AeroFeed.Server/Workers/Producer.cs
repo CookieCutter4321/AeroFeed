@@ -55,7 +55,10 @@ namespace AeroFeed.Server.Workers
                     //Testing: https://stream.wikimedia.org/v2/stream/recentchange?since=2026-03-25
                     using var stream = await client.GetStreamAsync("https://stream.wikimedia.org/v2/stream/recentchange", stoppingToken);
                     using var reader = new StreamReader(stream);
-
+                    //TODO: can we shrink the payload size by modifying the json? although this has CPU implications.
+                    //TODO: As for redis, we can just store the relevant data in its specific timeframe. then expire in 3 days or something.
+                    //No need to do anything fancy like deduplication for now, the scope of this project will not be able to reach that amount of bandwidth,
+                    //especially for replaying.
                     while (!stoppingToken.IsCancellationRequested)
                     {
                         string? line = await reader.ReadLineAsync(stoppingToken);
