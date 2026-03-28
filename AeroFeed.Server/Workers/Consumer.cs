@@ -106,8 +106,14 @@ namespace AeroFeed.Server.Workers
                     UpdateAnalytics(result, data);
 
                     //broadcast
-                    await _hubContext.Clients.All.SendAsync("ReceiveUpdate", data, stoppingToken);
-                    Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] message sent to clients");
+                    try
+                    {
+                        await _hubContext.Clients.All.SendAsync("ReceiveUpdate", data, stoppingToken);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [ERROR] Unable to deliver message to clients. Reason: {e.Message}");
+                    }
                 }
             }
             catch (OperationCanceledException)

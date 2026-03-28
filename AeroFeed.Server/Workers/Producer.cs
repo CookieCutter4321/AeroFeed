@@ -1,10 +1,20 @@
-﻿using Confluent.Kafka;
+﻿using AeroFeed.Server.Models;
+using Confluent.Kafka;
+using System.Reflection.Metadata.Ecma335;
+using System.Text;
+using System.Text.Json;
 
 
 namespace AeroFeed.Server.Workers
 {
     public class Producer : BackgroundService
     {
+        public static readonly JsonSerializerOptions options = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+            PropertyNameCaseInsensitive = true
+        };
+
         private static readonly HttpClient client = new()
         {
             DefaultRequestHeaders =
@@ -39,7 +49,7 @@ namespace AeroFeed.Server.Workers
             };
         }
 
-        private readonly SemaphoreSlim _kafkaThrottle = new(2, 2);
+        private readonly SemaphoreSlim _kafkaThrottle = new(2, 2); // Two seems to be the sweet spot to not let the lag get out of hand.
         protected override async Task ExecuteAsync(CancellationToken stoppingToken) 
         {
 
@@ -59,15 +69,43 @@ namespace AeroFeed.Server.Workers
                     //TODO: As for redis, we can just store the relevant data in its specific timeframe. then expire in 3 days or something.
                     //No need to do anything fancy like deduplication for now, the scope of this project will not be able to reach that amount of bandwidth,
                     //especially for replaying.
+                    //Maybe an entries per second counter to log to the client as well =)
+                    int n = 0;
+                    long lastOffset = 0;
                     while (!stoppingToken.IsCancellationRequested)
                     {
                         string? line = await reader.ReadLineAsync(stoppingToken);
 
                         if (string.IsNullOrEmpty(line)) continue;
                         if (!line.StartsWith("data: ")) continue;
+                        if (n >= 50)
+                        {
+                            try
+                            {
+                                using var temp_stream = await client.GetStreamAsync("https://stream.wikimedia.org/v2/stream/recentchange", stoppingToken);
+                                using var temp_reader = new StreamReader(temp_stream);
+
+                                string? temp_line;
+                                while ((temp_line = await temp_reader.ReadLineAsync(stoppingToken)) != null)
+                                {
+                                    if (temp_line.StartsWith("data: "))
+                                    {
+                                        var latest = JsonSerializer.Deserialize<RecentChange>(temp_line.AsSpan(6), options);
+                                        var current = JsonSerializer.Deserialize<RecentChange>(line.AsSpan(6), options);
+
+                                        if (current != null && latest != null)
+                                        {
+                                            Console.WriteLine($"LAG: {latest.Meta.Offset - current.Meta.Offset} messages");
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                            catch (Exception ex) { }
+                            n = 0;
+                        }
 
                         await _kafkaThrottle.WaitAsync(stoppingToken);
-
                         _ = Task.Run(async () =>
                         {
                             try
@@ -77,11 +115,12 @@ namespace AeroFeed.Server.Workers
                                     Key = Guid.NewGuid().ToString(),
                                     Value = line[6..]
                                 }, stoppingToken);
+                                n++;
 
                                 switch (deliveryResult.Status)
                                 {
-                                    case PersistenceStatus.Persisted:
-                                        Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] message persisted to Kafka");
+                                    case PersistenceStatus.Persisted: // No need to log if messages are delivered successfully.
+                                        //Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] message persisted to Kafka.");
                                         break;
                                     case PersistenceStatus.NotPersisted:
                                         Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [WARN] message not persisted to Kafka");

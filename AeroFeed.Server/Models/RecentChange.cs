@@ -23,7 +23,8 @@ namespace AeroFeed.Server.Models
         DateTime Dt, // Use this field when we want to replay. This line tells us when the event was, NOT the machine's current time
         string Stream,
         string? Domain,
-        string? Uri
+        string? Uri,
+        long? Offset
     );
 
     public record Length(
