@@ -1,8 +1,5 @@
-﻿using System.Diagnostics.Eventing.Reader;
-using System.Linq.Expressions;
-using System.Text.Json;
-using AeroFeed.Server.Models;
-using Confluent.Kafka;
+﻿using Confluent.Kafka;
+
 
 namespace AeroFeed.Server.Workers
 {
@@ -42,18 +39,20 @@ namespace AeroFeed.Server.Workers
             };
         }
 
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        private readonly SemaphoreSlim _kafkaThrottle = new(2, 2);
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken) 
         {
 
             using var producer = new ProducerBuilder<string, string>(_producerConfig)
                 .SetKeySerializer(Serializers.Utf8)
                 .SetValueSerializer(Serializers.Utf8)
                 .Build();
-
+            
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
+                    //Testing: https://stream.wikimedia.org/v2/stream/recentchange?since=2026-03-25
                     using var stream = await client.GetStreamAsync("https://stream.wikimedia.org/v2/stream/recentchange", stoppingToken);
                     using var reader = new StreamReader(stream);
 
@@ -64,24 +63,36 @@ namespace AeroFeed.Server.Workers
                         if (string.IsNullOrEmpty(line)) continue;
                         if (!line.StartsWith("data: ")) continue;
 
-                        var deliveryResult = await producer.ProduceAsync("RecentChanges", new Message<string, string>
-                        {
-                            Key = Guid.NewGuid().ToString(),
-                            Value = line[6..]
-                        }, stoppingToken);
+                        await _kafkaThrottle.WaitAsync(stoppingToken);
 
-                        switch (deliveryResult.Status)
+                        _ = Task.Run(async () =>
                         {
-                            case PersistenceStatus.Persisted:
-                                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] message persisted to Kafka");
-                                break;
-                            case PersistenceStatus.NotPersisted:
-                                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [WARN] message not persisted to Kafka");
-                                break;
-                            default:
-                                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [ERROR] unexpected status {deliveryResult.Status} when sending message to Kafka");
-                                break;
-                        }
+                            try
+                            {
+                                var deliveryResult = await producer.ProduceAsync("RecentChanges", new Message<string, string>
+                                {
+                                    Key = Guid.NewGuid().ToString(),
+                                    Value = line[6..]
+                                }, stoppingToken);
+
+                                switch (deliveryResult.Status)
+                                {
+                                    case PersistenceStatus.Persisted:
+                                        Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] message persisted to Kafka");
+                                        break;
+                                    case PersistenceStatus.NotPersisted:
+                                        Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [WARN] message not persisted to Kafka");
+                                        break;
+                                    default:
+                                        Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [ERROR] unexpected status {deliveryResult.Status} when sending message to Kafka");
+                                        break;
+                                }
+                            } finally
+                            {
+                                _kafkaThrottle.Release();
+                            }
+                        });
+
                     }
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)

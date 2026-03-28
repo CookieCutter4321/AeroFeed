@@ -81,6 +81,8 @@ namespace AeroFeed.Server.Workers
             }
         }
 
+        // On startup, we need to join the consumer group first. Thus there will be a delay, followed by a bulk update as we consume all the messages in the topic.
+        // After that, we will be consuming messages in real time, and sending updates to clients as we receive them.
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
 
