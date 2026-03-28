@@ -15,7 +15,7 @@
         <span class="text-sm text-gray-500 dark:text-gray-400">Net sum of characters changed</span>
 
         @if (kafkaService.currentData$ | async; as data) {
-        <h4 class="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">{{data.netLength}}</h4>
+        <h4 class="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">{{data.netLength | number: '1.0-0'}}</h4>
         }
       </div>
     </div>

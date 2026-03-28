@@ -49,7 +49,9 @@ namespace AeroFeed.Server.Models
             ["external"] = 0
         };
 
+        public int Bots { get; set; } = 0;
 
+        public int NonBots { get; set; } = 0;
     };
 
 }

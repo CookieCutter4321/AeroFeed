@@ -1,6 +1,6 @@
 import { Component, ChangeDetectionStrategy, ViewChild, AfterViewInit } from '@angular/core';
 import { SafeHtmlPipe } from '../../../pipe/safe-html.pipe';
-import { AsyncPipe } from '@angular/common';
+import { AsyncPipe, DecimalPipe } from '@angular/common';
 import { KafkaDataService } from '../../../services/data.service';
 import { ChartComponent, NgApexchartsModule } from 'ng-apexcharts';
 import {
@@ -8,7 +8,6 @@ import {
   ApexResponsive,
   ApexChart
 } from "ng-apexcharts";
-import { PieChart } from '@amcharts/amcharts5/.internal/charts/pie/PieChart';
 
 export type ChartOptions = {
   series: ApexNonAxisChartSeries;
@@ -19,7 +18,7 @@ export type ChartOptions = {
 
 @Component({
   selector: 'app-ecommerce-metrics',
-  imports: [NgApexchartsModule,SafeHtmlPipe, AsyncPipe],
+  imports: [NgApexchartsModule,SafeHtmlPipe, AsyncPipe, DecimalPipe],
   templateUrl: './ecommerce-metrics.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })

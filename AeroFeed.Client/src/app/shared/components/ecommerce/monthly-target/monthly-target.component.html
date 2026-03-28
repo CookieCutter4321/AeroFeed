@@ -3,10 +3,10 @@
     <div class="flex justify-between">
       <div>
         <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
-          Monthly Target
+          Bot Traffic
         </h3>
         <p class="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-          Target you’ve set for each month
+          The percentage of changes that are made by bot accounts
         </p>
       </div>
       <div class="relative inline-block">
@@ -38,43 +38,31 @@
           [colors]="colors"
         ></apx-chart>
       </div>
-      <span class="absolute left-1/2 top-full -translate-x-1/2 -translate-y-[95%] rounded-full bg-success-50 px-3 py-1 text-xs font-medium text-success-600 dark:bg-success-500/15 dark:text-success-500">
-        +10%
-      </span>
     </div>
-    <p class="mx-auto mt-10 w-full max-w-[380px] text-center text-sm text-gray-500 sm:text-base">
-      You earn $3287 today, it's higher than last month. Keep up your good work!
-    </p>
   </div>
 
   <div class="flex items-center justify-center gap-5 px-6 py-3.5 sm:gap-8 sm:py-5">
     <div>
       <p class="mb-1 text-center text-gray-500 text-theme-xs dark:text-gray-400 sm:text-sm">
-        Target
+        Bots
       </p>
       <p class="flex items-center justify-center gap-1 text-base font-semibold text-gray-800 dark:text-white/90 sm:text-lg">
-        $20K
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.26816 13.6632C7.4056 13.8192 7.60686 13.9176 7.8311 13.9176C7.83148 13.9176 7.83187 13.9176 7.83226 13.9176C8.02445 13.9178 8.21671 13.8447 8.36339 13.6981L12.3635 9.70076C12.6565 9.40797 12.6567 8.9331 12.3639 8.6401C12.0711 8.34711 11.5962 8.34694 11.3032 8.63973L8.5811 11.36L8.5811 2.5C8.5811 2.08579 8.24531 1.75 7.8311 1.75C7.41688 1.75 7.0811 2.08579 7.0811 2.5L7.0811 11.3556L4.36354 8.63975C4.07055 8.34695 3.59568 8.3471 3.30288 8.64009C3.01008 8.93307 3.01023 9.40794 3.30321 9.70075L7.26816 13.6632Z" fill="#D92D20"></path></svg>
+        @if (kafkaService.currentData$ | async; as data) {
+          {{data.bots | number: '1.0-0'}}
+        }
+        <svg width="16" height="16" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" class="iconify iconify--twemoji"><ellipse fill="#F4900C" cx="33.5" cy="14.5" rx="2.5" ry="3.5"/><ellipse fill="#F4900C" cx="2.5" cy="14.5" rx="2.5" ry="3.5"/><path fill="#FFAC33" d="M34 19a1 1 0 01-1 1h-3a1 1 0 01-1-1v-9a1 1 0 011-1h3a1 1 0 011 1v9zM7 19a1 1 0 01-1 1H3a1 1 0 01-1-1v-9a1 1 0 011-1h3a1 1 0 011 1v9z"/><path fill="#FFCC4D" d="M28 5c0 2.761-4.478 4-10 4C12.477 9 8 7.761 8 5s4.477-5 10-5c5.522.0 10 2.239 10 5z"/><path fill="#F4900C" d="M25 4.083C25 5.694 21.865 7 18 7c-3.866.0-7-1.306-7-2.917s3.134-2.917 7-2.917c3.865.0 7 1.306 7 2.917z"/><path fill="#269" d="M30 5.5C30 6.881 28.881 7 27.5 7h-19C7.119 7 6 6.881 6 5.5S7.119 3 8.5 3h19A2.5 2.5.0 0130 5.5z"/><path fill="#55ACEE" d="M30 6H6A2 2 0 004 8v26h28V8a2 2 0 00-2-2z"/><path fill="#3B88C3" d="M35 33v-1a2 2 0 00-2-2H22.071l-3.364 3.364a.999.999.0 01-1.414.0L13.929 30H3a2 2 0 00-2 2v1c0 1.104-.104 2 1 2h32c1.104.0 1-.896 1-2z"/><circle fill="#FFF" cx="24.5" cy="14.5" r="4.5"/><circle fill="#DD2E44" cx="24.5" cy="14.5" r="2.721"/><circle fill="#FFF" cx="11.5" cy="14.5" r="4.5"/><path fill="#F5F8FA" d="M29 25.5A2.5 2.5.0 0126.5 28h-17a2.5 2.5.0 110-5h17a2.5 2.5.0 012.5 2.5z"/><path fill="#CCD6DD" d="M17 23h2v5h-2zm-5 0h2v5h-2zm10 0h2v5h-2zM7 25.5a2.5 2.5.0 002 2.45v-4.9A2.5 2.5.0 007 25.5zm20-2.45v4.899a2.5 2.5.0 000-4.899z"/><circle fill="#DD2E44" cx="11.5" cy="14.5" r="2.721"/></svg>
       </p>
     </div>
     <div class="w-px bg-gray-200 h-7 dark:bg-gray-800"></div>
     <div>
       <p class="mb-1 text-center text-gray-500 text-theme-xs dark:text-gray-400 sm:text-sm">
-        Revenue
+        Humans
       </p>
       <p class="flex items-center justify-center gap-1 text-base font-semibold text-gray-800 dark:text-white/90 sm:text-lg">
-        $20K
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.60141 2.33683C7.73885 2.18084 7.9401 2.08243 8.16435 2.08243C8.16475 2.08243 8.16516 2.08243 8.16556 2.08243C8.35773 2.08219 8.54998 2.15535 8.69664 2.30191L12.6968 6.29924C12.9898 6.59203 12.9899 7.0669 12.6971 7.3599C12.4044 7.6529 11.9295 7.65306 11.6365 7.36027L8.91435 4.64004L8.91435 13.5C8.91435 13.9142 8.57856 14.25 8.16435 14.25C7.75013 14.25 7.41435 13.9142 7.41435 13.5L7.41435 4.64442L4.69679 7.36025C4.4038 7.65305 3.92893 7.6529 3.63613 7.35992C3.34333 7.06693 3.34348 6.59206 3.63646 6.29926L7.60141 2.33683Z" fill="#039855"></path></svg>
-      </p>
-    </div>
-    <div class="w-px bg-gray-200 h-7 dark:bg-gray-800"></div>
-    <div>
-      <p class="mb-1 text-center text-gray-500 text-theme-xs dark:text-gray-400 sm:text-sm">
-        Today
-      </p>
-      <p class="flex items-center justify-center gap-1 text-base font-semibold text-gray-800 dark:text-white/90 sm:text-lg">
-        $20K
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.60141 2.33683C7.73885 2.18084 7.9401 2.08243 8.16435 2.08243C8.16475 2.08243 8.16516 2.08243 8.16556 2.08243C8.35773 2.08219 8.54998 2.15535 8.69664 2.30191L12.6968 6.29924C12.9898 6.59203 12.9899 7.0669 12.6971 7.3599C12.4044 7.6529 11.9295 7.65306 11.6365 7.36027L8.91435 4.64004L8.91435 13.5C8.91435 13.9142 8.57856 14.25 8.16435 14.25C7.75013 14.25 7.41435 13.9142 7.41435 13.5L7.41435 4.64442L4.69679 7.36025C4.4038 7.65305 3.92893 7.6529 3.63613 7.35992C3.34333 7.06693 3.34348 6.59206 3.63646 6.29926L7.60141 2.33683Z" fill="#039855"></path></svg>
+        @if (kafkaService.currentData$ | async; as data) {
+          {{data.nonBots | number: '1.0-0'}}
+        }
+        <svg width="16" height="16" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" class="iconify iconify--twemoji"><path fill="#4289C1" d="M22 27H4a4 4 0 00-4 4v5h26v-5a4 4 0 00-4-4z"/><path fill="#2A6797" d="M21 32h1v4h-1zM4 32h1v4H4z"/><path fill="#FFDC5D" d="M10 22v6a3 3 0 106 0v-6h-6z"/><path fill="#4289C1" d="M29 36h-7l1-17h6z"/><path fill="#F9CA55" d="M31.541 15.443a1.286 1.286.0 00-1.517-.997L27.35 15H25a2 2 0 00-2 2v2h5a1.996 1.996.0 001.992-1.927l.355-.073H31c0-.074-.028-.144-.045-.216.444-.276.698-.799.586-1.341z"/><path fill="#FFDC5D" d="M36 16a1 1 0 00-1-1l-6 1h-5a1 1 0 00-1 1v2h6l6-2s1-.447 1-1zM4 5.938V17c0 4.971 4.029 9 9 9s9-4.029 9-9V6.25L4 5.938z"/><path fill="#C1694F" d="M9 22h8s-1 2-4 2-4-2-4-2z"/><path fill="#662113" d="M9 16a1 1 0 01-1-1v-1a1 1 0 012 0v1a1 1 0 01-1 1zm8 0a1 1 0 01-1-1v-1a1 1 0 012 0v1a1 1 0 01-1 1z"/><path fill="#C1694F" d="M14 19.5h-2a.5.5.0 010-1h2a.5.5.0 010 1z"/><path fill="#FFDC5D" d="M5.847 13.715c0 1.58-.801 2.861-1.788 2.861s-1.788-1.281-1.788-2.861.801-2.861 1.788-2.861 1.788 1.281 1.788 2.861zm17.882.0c0 1.58-.8 2.861-1.788 2.861s-1.788-1.281-1.788-2.861.8-2.861 1.788-2.861 1.788 1.281 1.788 2.861z"/><path fill="#FFAC33" d="M13 .823C5.981.823 2.861 5.507 2.861 9.411c0 3.903 1.343 4.986 1.56 3.903.78-3.903 3.12-5.101 3.12-5.101 4.68 3.904 3.9.781 3.9.781 4.679 4.684 2.34.0 2.34.0 1.56 1.562 6.239 1.562 6.239 1.562s.78 1.198 1.559 2.759c.78 1.562 1.56.0 1.56-3.903.0-3.905-3.9-8.589-10.139-8.589z"/></svg>
       </p>
     </div>
   </div>

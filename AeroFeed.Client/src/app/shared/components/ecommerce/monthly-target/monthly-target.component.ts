@@ -6,29 +6,45 @@ import {
   ApexPlotOptions,
   ApexFill,
   ApexStroke,
-  ApexOptions,
   NgApexchartsModule,
 } from 'ng-apexcharts';
 import { DropdownComponent } from '../../ui/dropdown/dropdown.component';
 import { DropdownItemComponent } from '../../ui/dropdown/dropdown-item/dropdown-item.component';
+import { KafkaDataService } from '../../../services/data.service';
+import { PI } from '@amcharts/amcharts5/.internal/core/util/Math';
+import { AsyncPipe, DecimalPipe } from '@angular/common';
 
 @Component({
   selector: 'app-monthly-target',
   imports: [
     NgApexchartsModule,
     DropdownComponent,
-    DropdownItemComponent
+    DropdownItemComponent,
+    AsyncPipe,
+    DecimalPipe
 ],
   templateUrl: './monthly-target.component.html',
 })
 export class MonthlyTargetComponent {
-  public series: ApexNonAxisChartSeries = [75.55];
+  public series: ApexNonAxisChartSeries = [NaN];
   public chart: ApexChart = {
     fontFamily: 'Outfit, sans-serif',
     type: 'radialBar',
     height: 330,
     sparkline: { enabled: true },
   };
+
+  constructor(public kafkaService : KafkaDataService) {
+  }
+  
+  ngAfterViewInit(): void {
+    this.kafkaService.currentData$.subscribe((data) => {
+      if (data == null || data.bots == null || data.nonBots == null) return;
+      const average: number = Math.round(((data.bots)/(data.bots + data.nonBots) * 100) * 100) / 100;
+      this.series = [average];
+    })
+  }
+
   public plotOptions: ApexPlotOptions = {
     radialBar: {
       startAngle: -85,

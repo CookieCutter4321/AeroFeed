@@ -48,7 +48,7 @@ namespace AeroFeed.Server.Workers
         /*
          * Will not work with multiple consumers (such as if we are utilizing partitioning) since we are just keeping a single global state here.
         */
-        RecentChangeAnalytics Data = new();
+        RecentChangeAnalytics data = new();
 
         private void UpdateAnalytics(RecentChange? result, RecentChangeAnalytics target)
         {
@@ -67,6 +67,18 @@ namespace AeroFeed.Server.Workers
                 }
                 target.TypeCounts[result.Type]++;
             }
+
+            if (result.Bot != null)
+            {
+                if (result.Bot.Value)
+                {
+                    target.Bots++;
+                }
+                else
+                {
+                    target.NonBots++;
+                }
+            }
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -80,20 +92,19 @@ namespace AeroFeed.Server.Workers
             consumer.Subscribe("RecentChanges");
             try
             {
-                int n = 0;
                 while (!stoppingToken.IsCancellationRequested)
                 {
-                    var consumeResult = consumer.Consume(TimeSpan.FromMilliseconds(100));
+                    var consumeResult = consumer.Consume(TimeSpan.FromMilliseconds(500));
                     if (consumeResult?.Message?.Value is null)
                     {
                         Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] No messages in queue or timeout");
                         continue;
                     }
                     var result = JsonSerializer.Deserialize<RecentChange>(consumeResult.Message.Value, options);
-                    UpdateAnalytics(result, Data);
+                    UpdateAnalytics(result, data);
 
                     //broadcast
-                    await _hubContext.Clients.All.SendAsync("ReceiveUpdate", Data, stoppingToken);
+                    await _hubContext.Clients.All.SendAsync("ReceiveUpdate", data, stoppingToken);
                     Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] message sent to clients");
                 }
             }
