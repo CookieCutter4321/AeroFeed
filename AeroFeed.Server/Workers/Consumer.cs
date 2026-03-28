@@ -102,9 +102,12 @@ namespace AeroFeed.Server.Workers
                         Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] No messages in queue or timeout");
                         continue;
                     }
-                    var result = JsonSerializer.Deserialize<RecentChange>(consumeResult.Message.Value, options);
-                    UpdateAnalytics(result, data);
 
+                    try
+                    {
+                        var result = JsonSerializer.Deserialize<RecentChange>(consumeResult.Message.Value, options);
+                        UpdateAnalytics(result, data);
+                    } catch { }
                     //broadcast
                     try
                     {

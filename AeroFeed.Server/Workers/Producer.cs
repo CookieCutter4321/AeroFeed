@@ -1,8 +1,10 @@
 ﻿using AeroFeed.Server.Models;
 using Confluent.Kafka;
 using System.Reflection.Metadata.Ecma335;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 
 namespace AeroFeed.Server.Workers
@@ -65,7 +67,6 @@ namespace AeroFeed.Server.Workers
                     //Testing: https://stream.wikimedia.org/v2/stream/recentchange?since=2026-03-25
                     using var stream = await client.GetStreamAsync("https://stream.wikimedia.org/v2/stream/recentchange", stoppingToken);
                     using var reader = new StreamReader(stream);
-                    //TODO: can we shrink the payload size by modifying the json? although this has CPU implications.
                     //TODO: As for redis, we can just store the relevant data in its specific timeframe. then expire in 3 days or something.
                     //No need to do anything fancy like deduplication for now, the scope of this project will not be able to reach that amount of bandwidth,
                     //especially for replaying.
@@ -74,10 +75,13 @@ namespace AeroFeed.Server.Workers
                     long lastOffset = 0;
                     while (!stoppingToken.IsCancellationRequested)
                     {
-                        string? line = await reader.ReadLineAsync(stoppingToken);
+                        string? result = await reader.ReadLineAsync(stoppingToken);
+                        if (string.IsNullOrEmpty(result)) continue;
+                        if (!result.StartsWith("data: ")) continue;
 
-                        if (string.IsNullOrEmpty(line)) continue;
-                        if (!line.StartsWith("data: ")) continue;
+                        // Filter unnecessary data by deserializing -> serializing based on model (it acts as a sort of whitelist for the fields we want to keep)
+                        string line = JsonSerializer.Serialize(JsonSerializer.Deserialize<RecentChange>(result.AsSpan(6), options));
+
                         if (n >= 50) { DisplayLagInfo(line, client, stoppingToken); n = 0; }
 
                         await _kafkaThrottle.WaitAsync(stoppingToken);
@@ -88,7 +92,7 @@ namespace AeroFeed.Server.Workers
                                 var deliveryResult = await producer.ProduceAsync("RecentChanges", new Message<string, string>
                                 {
                                     Key = Guid.NewGuid().ToString(),
-                                    Value = line[6..]
+                                    Value = line
                                 }, stoppingToken);
                                 n++;
                                 DisplayProduceAsyncStatus(deliveryResult);

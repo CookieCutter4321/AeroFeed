@@ -21,9 +21,6 @@ namespace AeroFeed.Server.Models
     public record Meta(
         string Id,
         DateTime Dt, // Use this field when we want to replay. This line tells us when the event was, NOT the machine's current time
-        string Stream,
-        string? Domain,
-        string? Uri,
         long? Offset
     );
 
