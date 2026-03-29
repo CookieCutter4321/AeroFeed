@@ -89,9 +89,11 @@ namespace AeroFeed.Server.Workers
 
 
                         // Load balancing
-                        if (n >= 50)
+                        bool lagCheckInProgress = false;
+                        if (n >= 50 && !lagCheckInProgress)
                         {
                             n = 0;
+                            lagCheckInProgress = true;
                             _ = Task.Run(async () =>
                             {
                                 long? lag_res = await DisplayLagInfo(line, client, stoppingToken);
@@ -104,6 +106,7 @@ namespace AeroFeed.Server.Workers
                                 {
                                     Console.WriteLine("Failed to get new offset for lag check");
                                 }
+                                lagCheckInProgress = false;
                             });
                         }
 
