@@ -29,7 +29,7 @@ export const routes: Routes = [
         component: EcommerceComponent,
         pathMatch: 'full',
         title:
-          'Angular Ecommerce Dashboard | TailAdmin - Angular Admin Dashboard Template',
+          'Wikimedia Event Stream Viewer',
       },
       {
         path:'calendar',
