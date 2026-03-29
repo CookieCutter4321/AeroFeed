@@ -14,12 +14,12 @@ namespace AeroFeed.Server.Models
         string? ServerName,
         string? Wiki,
         Meta Meta,
-        Length? Length,
-        Revision? Revision
+        Length? Length
+        // Revision? Revision
     );
 
     public record Meta(
-        string Id,
+        Guid Id,
         DateTime Dt, // Use this field when we want to replay. This line tells us when the event was, NOT the machine's current time
         long? Offset
     );
@@ -29,10 +29,12 @@ namespace AeroFeed.Server.Models
         int? New
     );
 
+
+    /*
     public record Revision(
         long? Old,
         long? New
-    );
+    ); */
 
     public class RecentChangeAnalytics // These properties are converted to camelCase when we send it over signalR
     {

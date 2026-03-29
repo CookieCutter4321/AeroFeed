@@ -42,7 +42,6 @@ namespace AeroFeed.Server.Workers
                 AutoOffsetReset = AutoOffsetReset.Earliest,
                 SessionTimeoutMs = 45000,
                 EnableAutoCommit = true,
-
             };
         }
 
