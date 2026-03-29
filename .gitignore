@@ -35,3 +35,8 @@ obj/
 *.user
 *.suo
 appsettings.*.json
+
+# Security
+*.pem
+*.cert
+*.key

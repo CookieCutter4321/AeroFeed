@@ -23,7 +23,15 @@ RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
     --self-contained false \
     -o /app
 
+WORKDIR /
+COPY kafka-certs kafka-certs
+
+WORKDIR /kafka-certs
+RUN ls -la
+
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS final
+COPY --from=build /kafka-certs /kafka-certs
+
 WORKDIR /app
 COPY --from=build /app .
 COPY --from=build /source/AeroFeed.Client/dist/ng-tailadmin/browser ./wwwroot 

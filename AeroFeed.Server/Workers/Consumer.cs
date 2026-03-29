@@ -132,7 +132,8 @@ namespace AeroFeed.Server.Workers
         // After that, we will be consuming messages in real time, and sending updates to clients as we receive them.
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            // Connect to and pull Historical data from Redis
+            // Connect to and pull Historical data from Redis'
+            //TODO: Subscribe to both asynchronously.
             ConnectionMultiplexer redis = ConnectionMultiplexer.Connect(_redisConfig);
 
 
