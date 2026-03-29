@@ -2,6 +2,7 @@
 using AeroFeed.Server.Models;
 using Confluent.Kafka;
 using Microsoft.AspNetCore.SignalR;
+using StackExchange.Redis;
 using System.Collections.Concurrent;
 using System.Text.Json;
 
@@ -39,12 +40,14 @@ namespace AeroFeed.Server.Workers
         private readonly IConfiguration _config;
         private readonly IHubContext<NotificationHub> _hubContext;
         private readonly ConsumerConfig _consumerConfig;
+        private readonly ConfigurationOptions _redisConfig;
         private RollingAverageCounter _counter;
+
         public Consumer(IConfiguration config, IHubContext<NotificationHub> hubContext)
         {
             _config = config;
             _hubContext = hubContext;
-
+            _counter = new();
             string certFolder = _config["KAFKA_CERT_LOCATION"];
 
             _consumerConfig = new ConsumerConfig
@@ -65,11 +68,18 @@ namespace AeroFeed.Server.Workers
                 EnableAutoCommit = true,
             };
 
-            _counter = new();
+            _redisConfig = new ConfigurationOptions
+            {
+                EndPoints = { "relaxing-marmot-87976.upstash.io" },
+                Password = _config["REDIS_TOKEN"],
+                Ssl = true,
+                AbortOnConnectFail = false,
+            };
         }
 
         /*
          * Will not work with multiple consumers (such as if we are utilizing partitioning) since we are just keeping a single global state here.
+         * For a prod system Redis will be the single source of truth.
         */
         RecentChangeAnalytics data = new();
 
@@ -107,10 +117,27 @@ namespace AeroFeed.Server.Workers
             }
         }
 
+        // Method to save to redis. Runs every minute asynchronously
+        private async Task SaveToRedis()
+        {
+            var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
+
+            while (await timer.WaitForNextTickAsync())
+            {
+                //Business logic
+            }
+        }
+
         // On startup, we need to join the consumer group first. Thus there will be a delay, followed by a bulk update as we consume all the messages in the topic.
         // After that, we will be consuming messages in real time, and sending updates to clients as we receive them.
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            // Connect to and pull Historical data from Redis
+            ConnectionMultiplexer redis = ConnectionMultiplexer.Connect(_redisConfig);
+
+
+
+            // Subscribe to Kafka topic
             bool joinedGroup = false;
             using var consumer = new ConsumerBuilder<string, string>(_consumerConfig)
                 .SetKeyDeserializer(Deserializers.Utf8)

@@ -34,4 +34,4 @@ obj/
 .vscode/
 *.user
 *.suo
-appsettings.Development.json
+appsettings.*.json
