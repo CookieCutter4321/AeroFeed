@@ -119,7 +119,7 @@ namespace AeroFeed.Server.Workers
                                 _kafkaThrottle.Release();
                                 Console.WriteLine($"Shifting UP to Gear {_currentGear}");
                             }
-                            else if (lag < 1000 && _currentGear > 1)
+                            else if (lag < 1000 && _currentGear > 3)
                             {
                                 _currentGear--;
                                 _ = _kafkaThrottle.WaitAsync();
