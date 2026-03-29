@@ -51,7 +51,7 @@ namespace AeroFeed.Server.Workers
             };
         }
 
-        private readonly SemaphoreSlim _kafkaThrottle = new(3, 3);
+        private readonly SemaphoreSlim _kafkaThrottle = new(6,6);
         protected override async Task ExecuteAsync(CancellationToken stoppingToken) 
         {
 
@@ -80,8 +80,9 @@ namespace AeroFeed.Server.Workers
                         if (!result.StartsWith("data: ")) continue;
 
                         // Filter unnecessary data by deserializing -> serializing based on model (it acts as a sort of whitelist for the fields we want to keep)
-                        var thing = JsonSerializer.Deserialize<RecentChange>(result.AsSpan(6), options);
                         string line = JsonSerializer.Serialize(JsonSerializer.Deserialize<RecentChange>(result.AsSpan(6), options));
+                        //int byteCount = Encoding.UTF8.GetByteCount(line);
+
 
                         if (n >= 50) { DisplayLagInfo(line, client, stoppingToken); n = 0; }
 

@@ -4,14 +4,14 @@ namespace AeroFeed.Server.Models
 {
     public record RecentChange(
         string? Type,
-        string? Title,
+        //string? Title,
         string? User,
-        string? Comment,
+        //string? Comment, // Kinda big and we don't really need any data from this. We can just opt for a bar chart of the most contributions by wiki type or something. (a heap perhaps?)
         bool? Bot,
         bool? Minor,
-        int? Namespace,
-        long? Timestamp,
-        string? ServerName,
+        //int? Namespace,
+        // long? Timestamp,
+        // string? ServerName,
         string? Wiki,
         Meta Meta,
         Length? Length
@@ -20,8 +20,8 @@ namespace AeroFeed.Server.Models
 
     public record Meta(
         Guid Id,
-        DateTime Dt, // Use this field when we want to replay. This line tells us when the event was, NOT the machine's current time
-        long? Offset
+        // DateTime Dt, // Maybe for when we want to replay. Anyway, Aiven's free plan probably will not work for the amount of throughput this would require.
+        long? Offset // Can use this to determine how far our producer is behind the actual Event Stream
     );
 
     public record Length(
