@@ -1,5 +1,6 @@
 ﻿using AeroFeed.Server.Models;
 using Confluent.Kafka;
+using System.ComponentModel;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -51,7 +52,8 @@ namespace AeroFeed.Server.Workers
             };
         }
 
-        private readonly SemaphoreSlim _kafkaThrottle = new(6,6);
+        private readonly SemaphoreSlim _kafkaThrottle = new(1,6);
+        private int _currentGear = 1; // Start at gear 1 (1 message at a time)
         protected override async Task ExecuteAsync(CancellationToken stoppingToken) 
         {
 
@@ -72,7 +74,7 @@ namespace AeroFeed.Server.Workers
                     //especially for replaying.
                     //Maybe an entries per second counter to log to the client as well =)
                     int n = 0;
-                    long lastOffset = 0;
+                    long lag = 0;
                     while (!stoppingToken.IsCancellationRequested)
                     {
                         string? result = await reader.ReadLineAsync(stoppingToken);
@@ -84,7 +86,25 @@ namespace AeroFeed.Server.Workers
                         //int byteCount = Encoding.UTF8.GetByteCount(line);
 
 
-                        if (n >= 50) { DisplayLagInfo(line, client, stoppingToken); n = 0; }
+                        // Load balancing
+                        if (n >= 50)
+                        {
+                            n = 0;
+                            lag = await DisplayLagInfo(line, client, stoppingToken) ?? lag;
+                        }
+
+                        if (lag > 500 && _currentGear < 6)
+                        {
+                            _currentGear++;
+                            _kafkaThrottle.Release();
+                            Console.WriteLine($"Shifting UP to Gear {_currentGear}");
+                        }
+                        else if (lag < 100 && _currentGear > 1)
+                        {
+                            _currentGear--;
+                            _ = _kafkaThrottle.WaitAsync();
+                            Console.WriteLine($"Shifting DOWN to Gear {_currentGear}");
+                        }
 
                         await _kafkaThrottle.WaitAsync(stoppingToken);
                         _ = Task.Run(async () =>
@@ -114,7 +134,7 @@ namespace AeroFeed.Server.Workers
             }
 
         }
-        public async void DisplayLagInfo(string line, HttpClient client, CancellationToken stoppingToken)
+        public async Task<long?> DisplayLagInfo(string line, HttpClient client, CancellationToken stoppingToken)
         {
             try
             {
@@ -132,12 +152,16 @@ namespace AeroFeed.Server.Workers
                         if (current != null && latest != null)
                         {
                             Console.WriteLine($"LAG: {latest.Meta.Offset - current.Meta.Offset} messages");
+                            return latest.Meta.Offset - current.Meta.Offset;
                         }
                         break;
                     }
                 }
             }
-            catch (Exception ex) { }
+            catch (Exception ex) {
+                return null;
+            }
+            return null;
         }
 
         public void DisplayProduceAsyncStatus (DeliveryResult<string,string> deliveryResult)
