@@ -31,6 +31,7 @@ namespace AeroFeed.Server.Workers
 
     public class Consumer : BackgroundService
     {
+
         public static readonly JsonSerializerOptions options = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
@@ -42,7 +43,7 @@ namespace AeroFeed.Server.Workers
         private readonly ConsumerConfig _consumerConfig;
         private readonly ConfigurationOptions _redisConfig;
         private RollingAverageCounter _counter;
-
+        private ConnectionMultiplexer _redis;
         public Consumer(IConfiguration config, IHubContext<NotificationHub> hubContext)
         {
             _config = config;
@@ -70,7 +71,8 @@ namespace AeroFeed.Server.Workers
 
             _redisConfig = new ConfigurationOptions
             {
-                EndPoints = { "relaxing-marmot-87976.upstash.io" },
+                EndPoints = { "relaxing-marmot-87976.upstash.io:6379" },
+                User = "default",
                 Password = _config["REDIS_TOKEN"],
                 Ssl = true,
                 AbortOnConnectFail = false,
@@ -118,25 +120,66 @@ namespace AeroFeed.Server.Workers
         }
 
         // Method to save to redis. Runs every minute asynchronously
-        private async Task SaveToRedis()
+        private void SaveToRedis(ConnectionMultiplexer redis)
         {
-            var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
-
-            while (await timer.WaitForNextTickAsync())
+            PeriodicTimer timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
+            _ = Task.Run(async () =>
             {
-                //Business logic
-            }
+                while (await timer.WaitForNextTickAsync())
+                {
+                    try
+                    {
+                        IDatabase db = redis.GetDatabase();
+                        db.StringSet("recent_changes:latest", JsonSerializer.Serialize(data, options));
+                        Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] Saving to redis");
+                    } catch (Exception ex)
+                    {
+                        Console.WriteLine($"Failed to write to redis: {ex.Message}");
+                    }
+                }
+            });
+
         }
 
-        // On startup, we need to join the consumer group first. Thus there will be a delay, followed by a bulk update as we consume all the messages in the topic.
-        // After that, we will be consuming messages in real time, and sending updates to clients as we receive them.
+        private void LoadFromRedis(ConnectionMultiplexer redis)
+        {
+            try
+            {
+                IDatabase db = redis.GetDatabase();
+                string? res = db.StringGet("recent_changes:latest");
+
+                if (res == null)
+                {
+                    Console.WriteLine("No existing data in redis, starting fresh");
+                    return;
+                }
+                Console.WriteLine("Existing data found in redis, loading..");
+                data = JsonSerializer.Deserialize<RecentChangeAnalytics>(res)!;
+            } catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to connect to redis: {ex.Message}");
+            }
+        }
+        
+        private async void BroadcastToClients()
+        {
+            try
+            {
+                await _hubContext.Clients.All.SendAsync("ReceiveUpdate", data);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [ERROR] Unable to deliver message to clients. Reason: {e.Message}");
+            }
+        }
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            // Connect to and pull Historical data from Redis'
-            //TODO: Subscribe to both asynchronously.
-            ConnectionMultiplexer redis = ConnectionMultiplexer.Connect(_redisConfig);
-
-
+            // Connect to and pull Historical data from Redis
+            Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] Connecting to redis instance..");
+            _redis = ConnectionMultiplexer.Connect(_redisConfig);
+            Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] Connected to redis instance");
+            LoadFromRedis(_redis);
+            SaveToRedis(_redis);
 
             // Subscribe to Kafka topic
             bool joinedGroup = false;
@@ -169,14 +212,7 @@ namespace AeroFeed.Server.Workers
                         UpdateAnalytics(result, data);
                     } catch { }
                     //broadcast
-                    try
-                    {
-                        await _hubContext.Clients.All.SendAsync("ReceiveUpdate", data, stoppingToken);
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [ERROR] Unable to deliver message to clients. Reason: {e.Message}");
-                    }
+                    BroadcastToClients();
                 }
             }
             catch (OperationCanceledException)
