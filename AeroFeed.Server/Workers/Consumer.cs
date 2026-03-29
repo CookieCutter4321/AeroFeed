@@ -42,6 +42,7 @@ namespace AeroFeed.Server.Workers
                 AutoOffsetReset = AutoOffsetReset.Earliest,
                 SessionTimeoutMs = 45000,
                 EnableAutoCommit = true,
+
             };
         }
 
@@ -85,20 +86,26 @@ namespace AeroFeed.Server.Workers
         // After that, we will be consuming messages in real time, and sending updates to clients as we receive them.
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-
+            bool joinedGroup = false;
             using var consumer = new ConsumerBuilder<string, string>(_consumerConfig)
                 .SetKeyDeserializer(Deserializers.Utf8)
-                .SetValueDeserializer(Deserializers.Utf8)
+                .SetValueDeserializer(Deserializers.Utf8).SetPartitionsAssignedHandler((c, partitions) =>
+                {
+                    Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] Partitions assigned");
+                    joinedGroup = true;
+                })
                 .Build();
 
             consumer.Subscribe("RecentChanges");
             try
             {
+                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] Consumer started and subscribed to topic. Waiting for messages and partition assignment..");
                 while (!stoppingToken.IsCancellationRequested)
                 {
                     var consumeResult = consumer.Consume(TimeSpan.FromMilliseconds(500));
                     if (consumeResult?.Message?.Value is null)
                     {
+                        if (!joinedGroup) continue; // Don't log timeouts until we've joined the group, since that's expected behavior
                         Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] No messages in queue or timeout");
                         continue;
                     }

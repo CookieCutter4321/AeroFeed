@@ -51,7 +51,7 @@ namespace AeroFeed.Server.Workers
             };
         }
 
-        private readonly SemaphoreSlim _kafkaThrottle = new(2, 2); // Two seems to be the sweet spot to not let the lag get out of hand.
+        private readonly SemaphoreSlim _kafkaThrottle = new(3, 3);
         protected override async Task ExecuteAsync(CancellationToken stoppingToken) 
         {
 
@@ -112,7 +112,7 @@ namespace AeroFeed.Server.Workers
             }
 
         }
-        public async void DisplayLagInfo(string? line, HttpClient client, CancellationToken stoppingToken)
+        public async void DisplayLagInfo(string line, HttpClient client, CancellationToken stoppingToken)
         {
             try
             {
@@ -125,7 +125,7 @@ namespace AeroFeed.Server.Workers
                     if (temp_line.StartsWith("data: "))
                     {
                         var latest = JsonSerializer.Deserialize<RecentChange>(temp_line.AsSpan(6), options);
-                        var current = JsonSerializer.Deserialize<RecentChange>(line.AsSpan(6), options);
+                        var current = JsonSerializer.Deserialize<RecentChange>(line, options);
 
                         if (current != null && latest != null)
                         {
