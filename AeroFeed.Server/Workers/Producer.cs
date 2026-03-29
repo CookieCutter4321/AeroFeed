@@ -73,9 +73,6 @@ namespace AeroFeed.Server.Workers
                     using var stream = await client.GetStreamAsync("https://stream.wikimedia.org/v2/stream/recentchange", stoppingToken);
                     using var reader = new StreamReader(stream);
                     //TODO: As for redis, we can just store the relevant data in its specific timeframe. then expire in 3 days or something.
-                    //No need to do anything fancy like deduplication for now, the scope of this project will not be able to reach that amount of bandwidth,
-                    //especially for replaying.
-                    //Maybe an entries per second counter to log to the client as well =)
                     int n = 0;
                     long lag = 0;
                     while (!stoppingToken.IsCancellationRequested)
