@@ -2,12 +2,32 @@
 using AeroFeed.Server.Models;
 using Confluent.Kafka;
 using Microsoft.AspNetCore.SignalR;
-using System.Data.Common;
-using System.Linq.Expressions;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace AeroFeed.Server.Workers
 {
+    public class RollingAverageCounter
+    {
+        private readonly ConcurrentQueue<DateTime> _ticks = new();
+        private readonly int _windowSeconds;
+        public RollingAverageCounter(int windowSeconds = 5) => _windowSeconds = windowSeconds;
+
+        public void Increment() => _ticks.Enqueue(DateTime.UtcNow);
+
+        public float GetAverage()
+        {
+            var cutoff = DateTime.UtcNow.AddSeconds(-_windowSeconds);
+
+            while (_ticks.TryPeek(out var result) && result < cutoff)
+            {
+                _ticks.TryDequeue(out _);
+            }
+
+            return (float)Math.Round((float)_ticks.Count / _windowSeconds, 1);
+        }
+    }
+
     public class Consumer : BackgroundService
     {
         public static readonly JsonSerializerOptions options = new()
@@ -19,6 +39,7 @@ namespace AeroFeed.Server.Workers
         private readonly IConfiguration _config;
         private readonly IHubContext<NotificationHub> _hubContext;
         private readonly ConsumerConfig _consumerConfig;
+        private RollingAverageCounter _counter;
         public Consumer(IConfiguration config, IHubContext<NotificationHub> hubContext)
         {
             _config = config;
@@ -43,6 +64,8 @@ namespace AeroFeed.Server.Workers
                 SessionTimeoutMs = 45000,
                 EnableAutoCommit = true,
             };
+
+            _counter = new();
         }
 
         /*
@@ -53,6 +76,9 @@ namespace AeroFeed.Server.Workers
         private void UpdateAnalytics(RecentChange? result, RecentChangeAnalytics target)
         {
             if (result is null) { return; }
+            
+            _counter.Increment();
+            target.Average = _counter.GetAverage();
 
             if (result.Length?.Old != null && result.Length.New != null)
             {
@@ -111,7 +137,7 @@ namespace AeroFeed.Server.Workers
 
                     try
                     {
-                        var result = JsonSerializer.Deserialize<RecentChange>(consumeResult.Message.Value, options);
+                        RecentChange result = JsonSerializer.Deserialize<RecentChange>(consumeResult.Message.Value, options)!;
                         UpdateAnalytics(result, data);
                     } catch { }
                     //broadcast

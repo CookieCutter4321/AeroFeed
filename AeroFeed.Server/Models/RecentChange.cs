@@ -52,6 +52,8 @@ namespace AeroFeed.Server.Models
         public int Bots { get; set; } = 0;
 
         public int NonBots { get; set; } = 0;
+
+        public float Average { get; set; } = 0;
     };
 
 }
