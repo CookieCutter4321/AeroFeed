@@ -113,13 +113,13 @@ namespace AeroFeed.Server.Workers
                         if (DateTime.UtcNow - curr >= _lagCheckInterval)
                         {
                             curr = DateTime.UtcNow;
-                            if (lag > 400 && _currentGear < 6)
+                            if (lag > 1500 && _currentGear < 6)
                             {
                                 _currentGear++;
                                 _kafkaThrottle.Release();
                                 Console.WriteLine($"Shifting UP to Gear {_currentGear}");
                             }
-                            else if (lag < 200 && _currentGear > 1)
+                            else if (lag < 1000 && _currentGear > 1)
                             {
                                 _currentGear--;
                                 _ = _kafkaThrottle.WaitAsync();
