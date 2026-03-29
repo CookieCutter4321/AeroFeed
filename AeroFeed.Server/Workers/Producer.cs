@@ -52,8 +52,11 @@ namespace AeroFeed.Server.Workers
             };
         }
 
-        private readonly SemaphoreSlim _kafkaThrottle = new(1,6);
-        private int _currentGear = 1; // Start at gear 1 (1 message at a time)
+        private readonly SemaphoreSlim _kafkaThrottle = new(3,6);
+        private int _currentGear = 3;
+        private DateTime curr = DateTime.UtcNow;
+        private TimeSpan _lagCheckInterval = TimeSpan.FromSeconds(10);
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken) 
         {
 
@@ -83,27 +86,42 @@ namespace AeroFeed.Server.Workers
 
                         // Filter unnecessary data by deserializing -> serializing based on model (it acts as a sort of whitelist for the fields we want to keep)
                         string line = JsonSerializer.Serialize(JsonSerializer.Deserialize<RecentChange>(result.AsSpan(6), options));
-                        //int byteCount = Encoding.UTF8.GetByteCount(line);
 
 
                         // Load balancing
                         if (n >= 50)
                         {
                             n = 0;
-                            lag = await DisplayLagInfo(line, client, stoppingToken) ?? lag;
+                            _ = Task.Run(async () =>
+                            {
+                                long? lag_res = await DisplayLagInfo(line, client, stoppingToken);
+
+                                if (lag_res != null)
+                                {
+                                    lag = (long)lag_res!;
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Failed to get new offset for lag check");
+                                }
+                            });
                         }
 
-                        if (lag > 500 && _currentGear < 6)
+                        if (DateTime.UtcNow - curr >= _lagCheckInterval)
                         {
-                            _currentGear++;
-                            _kafkaThrottle.Release();
-                            Console.WriteLine($"Shifting UP to Gear {_currentGear}");
-                        }
-                        else if (lag < 100 && _currentGear > 1)
-                        {
-                            _currentGear--;
-                            _ = _kafkaThrottle.WaitAsync();
-                            Console.WriteLine($"Shifting DOWN to Gear {_currentGear}");
+                            curr = DateTime.UtcNow;
+                            if (lag > 400 && _currentGear < 6)
+                            {
+                                _currentGear++;
+                                _kafkaThrottle.Release();
+                                Console.WriteLine($"Shifting UP to Gear {_currentGear}");
+                            }
+                            else if (lag < 200 && _currentGear > 1)
+                            {
+                                _currentGear--;
+                                _ = _kafkaThrottle.WaitAsync();
+                                Console.WriteLine($"Shifting DOWN to Gear {_currentGear}");
+                            }
                         }
 
                         await _kafkaThrottle.WaitAsync(stoppingToken);

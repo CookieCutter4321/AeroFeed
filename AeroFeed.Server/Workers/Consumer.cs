@@ -101,7 +101,7 @@ namespace AeroFeed.Server.Workers
                 Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] Consumer started and subscribed to topic. Waiting for messages and partition assignment..");
                 while (!stoppingToken.IsCancellationRequested)
                 {
-                    var consumeResult = consumer.Consume(TimeSpan.FromMilliseconds(500));
+                    var consumeResult = consumer.Consume(TimeSpan.FromMilliseconds(150));
                     if (consumeResult?.Message?.Value is null)
                     {
                         if (!joinedGroup) continue; // Don't log timeouts until we've joined the group, since that's expected behavior
