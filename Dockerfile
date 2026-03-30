@@ -37,4 +37,5 @@ COPY --from=build /app .
 COPY --from=build /source/AeroFeed.Client/dist/ng-tailadmin/browser ./wwwroot 
 
 USER $APP_UID
+EXPOSE 8080
 ENTRYPOINT ["dotnet", "AeroFeed.Server.dll"]

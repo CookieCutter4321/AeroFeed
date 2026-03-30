@@ -1,7 +1,23 @@
 using AeroFeed.Server.Hubs;
 using AeroFeed.Server.Workers;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
+
+
+//Redis config
+
+var redisConfig = new ConfigurationOptions
+{
+    EndPoints = { "relaxing-marmot-87976.upstash.io:6379" },
+    User = "default",
+    Password = builder.Configuration["REDIS_TOKEN"],
+    Ssl = true,
+    AbortOnConnectFail = false,
+};
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp => ConnectionMultiplexer.Connect(redisConfig));
+Console.WriteLine("Connected to Redis");
 
 // Add services to the container.
 builder.Services.AddHostedService<Producer>();

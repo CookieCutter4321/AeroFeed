@@ -43,11 +43,12 @@ namespace AeroFeed.Server.Workers
         private readonly ConsumerConfig _consumerConfig;
         private readonly ConfigurationOptions _redisConfig;
         private RollingAverageCounter _counter;
-        private ConnectionMultiplexer _redis;
-        public Consumer(IConfiguration config, IHubContext<NotificationHub> hubContext)
+        private IConnectionMultiplexer _redis;
+        public Consumer(IConfiguration config, IHubContext<NotificationHub> hubContext, IConnectionMultiplexer connectionMultiplexer)
         {
             _config = config;
             _hubContext = hubContext;
+            _redis = connectionMultiplexer;
             _counter = new();
             string certFolder = _config["KAFKA_CERT_LOCATION"];
 
@@ -83,7 +84,7 @@ namespace AeroFeed.Server.Workers
          * Will not work with multiple consumers (such as if we are utilizing partitioning) since we are just keeping a single global state here.
          * For a prod system Redis will be the single source of truth.
         */
-        RecentChangeAnalytics data = new();
+        RecentChangeAnalytics data;
 
         private void UpdateAnalytics(RecentChange? result, RecentChangeAnalytics target)
         {
@@ -119,8 +120,7 @@ namespace AeroFeed.Server.Workers
             }
         }
 
-        // Method to save to redis. Runs every minute asynchronously
-        private void SaveToRedis(ConnectionMultiplexer redis)
+        private void SaveToRedis(IConnectionMultiplexer redis)
         {
             PeriodicTimer timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
             _ = Task.Run(async () =>
@@ -141,7 +141,7 @@ namespace AeroFeed.Server.Workers
 
         }
 
-        private void LoadFromRedis(ConnectionMultiplexer redis)
+        private void LoadFromRedis(IConnectionMultiplexer redis)
         {
             try
             {
@@ -154,7 +154,8 @@ namespace AeroFeed.Server.Workers
                     return;
                 }
                 Console.WriteLine("Existing data found in redis, loading..");
-                data = JsonSerializer.Deserialize<RecentChangeAnalytics>(res)!;
+                data = JsonSerializer.Deserialize<RecentChangeAnalytics>(res, options)!;
+                BroadcastToClients();
             } catch (Exception ex)
             {
                 Console.WriteLine($"Failed to connect to redis: {ex.Message}");
@@ -174,10 +175,6 @@ namespace AeroFeed.Server.Workers
         }
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            // Connect to and pull Historical data from Redis
-            Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] Connecting to redis instance..");
-            _redis = ConnectionMultiplexer.Connect(_redisConfig);
-            Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] Connected to redis instance");
             LoadFromRedis(_redis);
             SaveToRedis(_redis);
 
@@ -198,7 +195,7 @@ namespace AeroFeed.Server.Workers
                 Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] Consumer started and subscribed to topic. Waiting for messages and partition assignment..");
                 while (!stoppingToken.IsCancellationRequested)
                 {
-                    var consumeResult = consumer.Consume(TimeSpan.FromMilliseconds(150));
+                    var consumeResult = consumer.Consume(TimeSpan.FromMilliseconds(1000));
                     if (consumeResult?.Message?.Value is null)
                     {
                         if (!joinedGroup) continue; // Don't log timeouts until we've joined the group, since that's expected behavior
@@ -217,10 +214,12 @@ namespace AeroFeed.Server.Workers
             }
             catch (OperationCanceledException)
             {
-
             }
             finally
             {
+                IDatabase db = _redis.GetDatabase();
+                db.StringSet("recent_changes:latest", JsonSerializer.Serialize(data, options));
+                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] Saving to redis on shutdown..");
                 consumer.Close();
             }
         }
