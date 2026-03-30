@@ -10,7 +10,7 @@ Technologies used:
 
 3.Distributed Event Streaming Platform: Kafka. Serves as a buffer for spikes in data and is fault tolerant
 
-4.Containerization: Docker. Lets us deploy to the cloud without worrying if it will compile
+4.Containerization: Docker. Lets us deploy to the cloud without worrying if it will compile / run
 
 To set this up, make sure you:
 1. Make: appsettings.Development.json -- REDIS_TOKEN field if using cloud. I personally use Upstash as it is free and has a 500k monthly command limit, which is pretty generous!
