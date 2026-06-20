@@ -30,8 +30,6 @@ builder.Services.AddSignalR();
 
 var app = builder.Build();
 
-//
-
 app.UseAuthorization();
 app.MapControllers();
 //
@@ -81,4 +79,6 @@ app.Run();
  *  TODO: refactor
  *  
  *  TODO: add logging and metrics (e.g. Application Insights)
+ *  
+ *  TODO: Set up local instances of kafka and redis for development and testings
  */

@@ -32,17 +32,11 @@ namespace AeroFeed.Server.Workers
 
     public class Consumer : BackgroundService
     {
-
-        public static readonly JsonSerializerOptions options = new()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-            PropertyNameCaseInsensitive = true
-        };
+        public static readonly JsonSerializerOptions options = Producer.options;
 
         private readonly IConfiguration _config;
         private readonly IHubContext<NotificationHub> _hubContext;
         private readonly ConsumerConfig _consumerConfig;
-        private readonly ConfigurationOptions _redisConfig;
         private RollingAverageCounter _counter;
         private IConnectionMultiplexer _redis;
         public Consumer(IConfiguration config, IHubContext<NotificationHub> hubContext, IConnectionMultiplexer connectionMultiplexer)
@@ -69,15 +63,6 @@ namespace AeroFeed.Server.Workers
                 AutoOffsetReset = AutoOffsetReset.Earliest,
                 SessionTimeoutMs = 45000,
                 EnableAutoCommit = true,
-            };
-
-            _redisConfig = new ConfigurationOptions
-            {
-                EndPoints = { _config["REDIS_ENDPOINT"] },
-                User = "default",
-                Password = _config["REDIS_TOKEN"],
-                Ssl = true,
-                AbortOnConnectFail = false,
             };
         }
 

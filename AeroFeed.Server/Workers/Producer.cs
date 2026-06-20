@@ -26,6 +26,8 @@ namespace AeroFeed.Server.Workers
             }
         };
 
+        private readonly int STREAM_OFFSET = 6; // length of "data: " that comes with responses from the stream, we need to skip it to get the actual JSON data
+
         private readonly IConfiguration _config;
         private readonly ProducerConfig _producerConfig;
         public Producer(IConfiguration config)
@@ -72,9 +74,9 @@ namespace AeroFeed.Server.Workers
                     //Testing: https://stream.wikimedia.org/v2/stream/recentchange?since=2026-03-25
                     using var stream = await client.GetStreamAsync("https://stream.wikimedia.org/v2/stream/recentchange", stoppingToken);
                     using var reader = new StreamReader(stream);
-                    //TODO: As for redis, we can just store the relevant data in its specific timeframe. then expire in 3 days or something.
                     int n = 0;
                     long lag = 0;
+                    bool lagCheckInProgress = false;
                     while (!stoppingToken.IsCancellationRequested)
                     {
                         string? result = await reader.ReadLineAsync(stoppingToken);
@@ -82,11 +84,10 @@ namespace AeroFeed.Server.Workers
                         if (!result.StartsWith("data: ")) continue;
 
                         // Filter unnecessary data by deserializing -> serializing based on model (it acts as a sort of whitelist for the fields we want to keep)
-                        string line = JsonSerializer.Serialize(JsonSerializer.Deserialize<RecentChange>(result.AsSpan(6), options));
+                        string line = JsonSerializer.Serialize(JsonSerializer.Deserialize<RecentChange>(result.AsSpan(STREAM_OFFSET), options));
 
 
                         // Load balancing
-                        bool lagCheckInProgress = false;
                         if (n >= 50 && !lagCheckInProgress)
                         {
                             n = 0;
@@ -154,30 +155,24 @@ namespace AeroFeed.Server.Workers
         }
         public async Task<long?> DisplayLagInfo(string line, HttpClient client, CancellationToken stoppingToken)
         {
-            try
+            using var temp_stream = await client.GetStreamAsync("https://stream.wikimedia.org/v2/stream/recentchange", stoppingToken);
+            using var temp_reader = new StreamReader(temp_stream);
+
+            string? temp_line;
+            while ((temp_line = await temp_reader.ReadLineAsync(stoppingToken)) != null)
             {
-                using var temp_stream = await client.GetStreamAsync("https://stream.wikimedia.org/v2/stream/recentchange", stoppingToken);
-                using var temp_reader = new StreamReader(temp_stream);
-
-                string? temp_line;
-                while ((temp_line = await temp_reader.ReadLineAsync(stoppingToken)) != null)
+                if (temp_line.StartsWith("data: "))
                 {
-                    if (temp_line.StartsWith("data: "))
-                    {
-                        var latest = JsonSerializer.Deserialize<RecentChange>(temp_line.AsSpan(6), options);
-                        var current = JsonSerializer.Deserialize<RecentChange>(line, options);
+                    var latest = JsonSerializer.Deserialize<RecentChange>(temp_line.AsSpan(STREAM_OFFSET), options);
+                    var current = JsonSerializer.Deserialize<RecentChange>(line, options);
 
-                        if (current != null && latest != null)
-                        {
-                            Console.WriteLine($"LAG: {latest.Meta.Offset - current.Meta.Offset} messages");
-                            return latest.Meta.Offset - current.Meta.Offset;
-                        }
-                        break;
+                    if (current is not null && latest is not null)
+                    {
+                        Console.WriteLine($"LAG: {latest.Meta.Offset - current.Meta.Offset} messages");
+                        return latest.Meta.Offset - current.Meta.Offset;
                     }
+                    break;
                 }
-            }
-            catch (Exception ex) {
-                return null;
             }
             return null;
         }
@@ -186,8 +181,7 @@ namespace AeroFeed.Server.Workers
         {
             switch (deliveryResult.Status)
             {
-                case PersistenceStatus.Persisted: // No need to log if messages are delivered successfully.
-                    //Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] message persisted to Kafka.");
+                case PersistenceStatus.Persisted:
                     break;
                 case PersistenceStatus.NotPersisted:
                     Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [WARN] message not persisted to Kafka");
