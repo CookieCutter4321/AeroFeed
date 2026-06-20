@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 var redisConfig = new ConfigurationOptions
 {
-    EndPoints = { "relaxing-marmot-87976.upstash.io:6379" },
+    EndPoints = { builder.Configuration["REDIS_ENDPOINT"] },
     User = "default",
     Password = builder.Configuration["REDIS_TOKEN"],
     Ssl = true,
@@ -64,17 +64,6 @@ app.Run();
  * My hope is to eliminate this by bucketing the data on Redis and ONLY writing to the most recent time bucket with a defined TTL.
  * Any bad data will be removed after the TTL expires.
  * 
- * TODO: The kafka (and probably redis eventually) certs are currently hardcoded, meaning it won't work on docker. We should do the following:
- * 1. Running Docker locally - copy the certs (based off of KAFKA_CERT_LOCATION) to the output folder and use those.
- * 2. Running Docker in production - use secrets and mount them to the container, then use those paths in the config.
- * 
- * TODO: We want to keep below the 500k monthly command limit for redis. We should aim to:
- * 1. batch updates in groups (perhaps every 100 messages or every 5 minutes, whichever comes first). We could also perform these calculations ourselves before sending.
- * 2. When we consume from the kafka topic we should send the update to the client via SignalR. 
- * We should NOT poll redis for updates, but instead rely on the fact that the client will receive the update via SignalR and then update their local state accordingly. 
- * This will reduce the number of reads we perform on Redis.
- * tips: Maybe ConcurrentStack or Channel<T>
- * 
  * 100 messages / sec * 60 secs / min * 60 min / hr * 24 hr / day * 30 days / month = 259,200,000 messages per month (assuming worst case of 100 m/s)
  * So the plan is something like:
  * 1. Deduplication - batch 1,000 UUIDS . 259,200 BF.MADD calls
@@ -88,4 +77,8 @@ app.Run();
  *  (so 40 bytes) = 48 bytes total. If we wanted to slice it per minute for a max of 3 days then 60 min / hr * 24 hr / day * 3 = 4320 slices. 
  *  4320 * 48 bytes ~= 0.20 worth of MB. (OnConnectedAsync maybe?)
  *  2. if the user is OLD, then send only the most recent timestamp data (assume user already has the historical loaded already). 
+ *  
+ *  TODO: refactor
+ *  
+ *  TODO: add logging and metrics (e.g. Application Insights)
  */

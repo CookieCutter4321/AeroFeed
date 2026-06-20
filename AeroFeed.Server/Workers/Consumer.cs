@@ -55,7 +55,7 @@ namespace AeroFeed.Server.Workers
 
             _consumerConfig = new ConsumerConfig
             {
-                BootstrapServers = "aerofeed-kafka-jw9007235-5415.l.aivencloud.com:24013",
+                BootstrapServers = _config["KAFKA_ENDPOINT"],
                 SecurityProtocol = SecurityProtocol.Ssl,
 
                 // truststore (CA)
@@ -73,7 +73,7 @@ namespace AeroFeed.Server.Workers
 
             _redisConfig = new ConfigurationOptions
             {
-                EndPoints = { "relaxing-marmot-87976.upstash.io:6379" },
+                EndPoints = { _config["REDIS_ENDPOINT"] },
                 User = "default",
                 Password = _config["REDIS_TOKEN"],
                 Ssl = true,
@@ -149,14 +149,14 @@ namespace AeroFeed.Server.Workers
                 IDatabase db = redis.GetDatabase();
                 string? res = db.StringGet("recent_changes:latest");
 
-
-                if (db.KeyExists("recent_changes:bloomfilter")) {
+                if (_config.GetValue<bool>("UseBloomFilter") == true && db.KeyExists("recent_changes:bloomfilter")) {
                     db.KeyDelete("recent_changes:bloomfilter");
                 }
 
                 if (res == null)
                 {
                     Console.WriteLine("No existing data in redis, starting fresh");
+                    data = new RecentChangeAnalytics();
                     return;
                 }
                 Console.WriteLine("Existing data found in redis, loading..");
@@ -187,7 +187,7 @@ namespace AeroFeed.Server.Workers
             // Init bloom filter
             IDatabase database = _redis.GetDatabase();
             int validationCount = 0;
-            if (!await database.KeyExistsAsync("recent_changes:bloomfilter"))
+            if (_config.GetValue<bool>("UseBloomFilter") == true && !await database.KeyExistsAsync("recent_changes:bloomfilter"))
                 {
                     Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] Initializing bloom filter in Redis..");
                     database.BF().Reserve("recent_changes:bloomfilter", 0.001, 5_000_000);
@@ -217,28 +217,38 @@ namespace AeroFeed.Server.Workers
                         Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] No messages in queue or timeout");
                         continue;
                     }
-
-                    try
+                    if (_config.GetValue<bool>("UseBloomFilter") == true)
                     {
-                        RecentChange result = JsonSerializer.Deserialize<RecentChange>(consumeResult.Message.Value, options)!;
-
-                        if (database.BF().Exists("recent_changes:bloomfilter", result.Meta.Id.ToString())) {
-                            Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] Possible duplicate entry detected, skipping");
-                        } else
+                        try
                         {
-                            validationCount++;
-                            database.BF().Add("recent_changes:bloomfilter", result.Meta.Id.ToString());
-                            UpdateAnalytics(result, data);
+                            RecentChange result = JsonSerializer.Deserialize<RecentChange>(consumeResult.Message.Value, options)!;
 
-                            if (validationCount > 4_950_000)
+                            if (database.BF().Exists("recent_changes:bloomfilter", result.Meta.Id.ToString()))
                             {
-                                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] Resetting bloom filter as it is approaching the 5M limit..");
-                                database.KeyDelete("recent_changes:bloomfilter");
-                                database.BF().Reserve("recent_changes:bloomfilter", 0.001, 5_000_000);
-                                validationCount = 0;
+                                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] Possible duplicate entry detected, skipping");
+                            }
+                            else
+                            {
+                                validationCount++;
+                                database.BF().Add("recent_changes:bloomfilter", result.Meta.Id.ToString());
+                                UpdateAnalytics(result, data);
+
+                                if (validationCount > 4_950_000)
+                                {
+                                    Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")} [INFO] Resetting bloom filter as it is approaching the 5M limit..");
+                                    database.KeyDelete("recent_changes:bloomfilter");
+                                    database.BF().Reserve("recent_changes:bloomfilter", 0.001, 5_000_000);
+                                    validationCount = 0;
+                                }
                             }
                         }
-                    } catch { }
+                        catch { }
+                    } else
+                    {
+                        RecentChange result = JsonSerializer.Deserialize<RecentChange>(consumeResult.Message.Value, options)!;
+                        UpdateAnalytics(result, data);
+                    }
+
                     //broadcast
                     BroadcastToClients();
                 }

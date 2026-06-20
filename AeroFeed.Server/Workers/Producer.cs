@@ -35,7 +35,7 @@ namespace AeroFeed.Server.Workers
 
             _producerConfig = new ProducerConfig
             {
-                BootstrapServers = "aerofeed-kafka-jw9007235-5415.l.aivencloud.com:24013",
+                BootstrapServers = _config["KAFKA_ENDPOINT"],
                 SecurityProtocol = SecurityProtocol.Ssl,
 
                 // truststore (CA)
